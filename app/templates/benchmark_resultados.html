@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Benchmark de concurrencia{% endblock %}
+{% block extra_head %}
+{% if not todas_finalizadas %}
+<meta http-equiv="refresh" content="3">
+{% endif %}
+{% endblock %}
+{% block content %}
+<h1>Benchmark de concurrencia</h1>
+{% if persona_nombre %}<p class="hint">Persona: <strong>{{ persona_nombre }}</strong></p>{% endif %}
+{% if not todas_finalizadas %}
+<p class="hint">Corriendo... esta página se actualiza sola cada 3s. Las corridas van una detrás de otra.</p>
+{% endif %}
+
+<section class="card">
+    <h2>Comparación 1 vs. N workers</h2>
+    <table>
+        <tr><th>Workers</th><th>Estado</th><th>URLs procesadas</th><th>Tiempo (s)</th><th>Conflictos evitados (RF4)</th><th>Comparación</th></tr>
+        {% for f in filas %}
+        <tr>
+            <td><strong>{{ f.workers }}</strong></td>
+            <td><span class="badge badge-{{ f.estado|lower }}">{{ f.estado }}</span></td>
+            <td>{{ f.urls_procesadas if f.urls_procesadas is not none else "-" }}</td>
+            <td>{{ f.tiempo if f.tiempo is not none else "-" }}</td>
+            <td>{{ f.conflictos if f.conflictos is not none else "-" }}</td>
+            <td style="min-width:200px;">
+                {% if f.tiempo %}
+                <div class="barra-fondo">
+                    <div class="barra-valor" style="width: {{ (f.tiempo / tiempo_max * 100) | round(1) }}%"></div>
+                </div>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+{% if analisis %}
+<section class="card">
+    <h2>Análisis de los resultados</h2>
+    <p>{{ analisis }}</p>
+</section>
+{% elif todas_finalizadas %}
+<section class="card">
+    <p class="hint">Se necesitan al menos 2 corridas finalizadas correctamente para generar el análisis.</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Fuentes{% endblock %}
+{% block content %}
+<h1>Administración de fuentes (RF2)</h1>
+<p class="hint">
+    El país se <strong>determina automáticamente</strong> a partir del
+    contenido de la URL (idioma declarado, dominio, léxico), nunca de la
+    ubicación del servidor. Si el sistema no logra determinarlo con
+    confianza, te pedirá que lo confirmes manualmente.
+</p>
+
+{% if error %}
+<div class="card error-box">
+    <strong>No se pudo autodetectar el país:</strong> {{ error }}
+    <p class="small">Vuelve a llenar el formulario; ahora aparecerá un campo para indicar el país tú mismo.</p>
+</div>
+{% endif %}
+
+<form method="post" action="/fuentes/nueva" class="card form">
+    <label>Nombre *</label>
+    <input type="text" name="nombre" required placeholder="El Tiempo">
+
+    <label>URL inicial (seed URL) *</label>
+    <input type="url" name="url_inicial" required placeholder="https://www.eltiempo.com">
+
+    <label>Tipo</label>
+    <select name="tipo">
+        {% for t in tipos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+    </select>
+
+    {% if error %}
+    <label>País (no se pudo detectar automáticamente — ingrésalo tú) *</label>
+    <input type="text" name="pais_manual" required placeholder="Colombia">
+    {% endif %}
+
+    <button type="submit">Agregar fuente</button>
+</form>
+
+<section class="card">
+    <h2>Fuentes registradas</h2>
+    <table>
+        <tr><th>ID</th><th>Nombre</th><th>URL inicial</th><th>País</th><th>Detección</th><th>Tipo</th><th>Estado</th><th></th></tr>
+        {% for f in fuentes %}
+        <tr>
+            <td>{{ f.id }}</td><td>{{ f.nombre }}</td>
+            <td><a href="{{ f.url_inicial }}" target="_blank">{{ f.url_inicial }}</a></td>
+            <td>{{ f.pais }}</td>
+            <td class="small" title="{{ f.evidencia_deteccion_pais or '' }}">
+                {% if f.pais_detectado_automaticamente %}
+                    <span class="badge badge-positivo">Automático</span>
+                    (confianza {{ f.confianza_deteccion_pais }})
+                {% else %}
+                    <span class="badge badge-neutro">Manual</span>
+                {% endif %}
+                <details>
+                    <summary class="small">corregir</summary>
+                    <form method="post" action="/fuentes/{{ f.id }}/corregir-pais" class="form-inline">
+                        <input type="text" name="pais_correcto" placeholder="País correcto" required
+                               value="{{ f.pais }}" style="width:120px;">
+                        <button type="submit">Guardar</button>
+                    </form>
+                </details>
+            </td>
+            <td>{{ f.tipo.value if f.tipo.value else f.tipo }}</td>
+            <td>{{ "Activa" if f.activa else "Inactiva" }}</td>
+            <td>
+                <form method="post" action="/fuentes/{{ f.id }}/toggle">
+                    <button type="submit">{{ "Desactivar" if f.activa else "Activar" }}</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

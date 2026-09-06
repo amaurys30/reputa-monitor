@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Nueva búsqueda{% endblock %}
+{% block content %}
+<h1>Iniciar nueva búsqueda</h1>
+<form method="post" action="/busquedas/nueva" class="card form">
+    <label>Persona *</label>
+    <select name="persona_id" required>
+        {% for p in personas %}
+        <option value="{{ p.id }}">{{ p.nombre_completo }} ({{ p.pais }})</option>
+        {% endfor %}
+    </select>
+
+    <label>País de búsqueda *</label>
+    <input type="text" name="pais" required placeholder="Colombia">
+
+    <label>Número de workers (RF3 - configurable) *</label>
+    <input type="number" name="max_workers" min="1" max="50" value="5" required>
+
+    <label>Límite de URLs a explorar</label>
+    <input type="number" name="max_urls" min="1" max="5000" value="60" id="max_urls_input">
+    <label class="checkbox-inline">
+        <input type="checkbox" name="sin_limite" id="sin_limite_check"
+               onchange="document.getElementById('max_urls_input').disabled = this.checked;">
+        Sin límite (explorar hasta agotar todas las URLs descubiertas)
+    </label>
+
+    <button type="submit">Iniciar crawling</button>
+</form>
+<p class="hint">
+    El crawling corre en segundo plano con el número de workers indicado.
+    Serás redirigido a la vista de resultados, donde puedes refrescar para
+    ver el progreso y las métricas de concurrencia al finalizar.
+</p>
+<p class="hint">
+    <strong>Atención con "Sin límite":</strong> úsalo solo con fuentes
+    pequeñas o controladas. Contra sitios grandes de noticias (con miles
+    de páginas enlazadas entre sí) el crawling podría tardar muchísimo o
+    no terminar en un tiempo razonable.
+</p>
+{% endblock %}

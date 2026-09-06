@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: reputa_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reputa
+      POSTGRES_PASSWORD: reputa
+      POSTGRES_DB: reputa_monitor
+    ports:
+      - "5432:5432"
+    volumes:
+      - reputa_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reputa -d reputa_monitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: reputa_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://reputa:reputa@db:5432/reputa_monitor
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/code
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  reputa_pgdata:

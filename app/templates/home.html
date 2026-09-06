@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Inicio - Reputa Monitor{% endblock %}
+{% block content %}
+<h1>Panel principal</h1>
+
+<section class="card">
+    <h2>Personas registradas (RF1)</h2>
+    {% if personas %}
+    <table>
+        <tr><th>ID</th><th>Nombre</th><th>País</th><th>Ciudad</th><th></th><th></th></tr>
+        {% for p in personas %}
+        <tr>
+            <td>{{ p.id }}</td><td>{{ p.nombre_completo }}</td>
+            <td>{{ p.pais }}</td><td>{{ p.ciudad or "-" }}</td>
+            <td><a href="/busquedas/nueva">Buscar</a></td>
+            <td>
+                <form method="post" action="/personas/{{ p.id }}/eliminar"
+                      onsubmit="return confirm('¿Eliminar a {{ p.nombre_completo }}? Esto también borrará todas sus búsquedas, documentos y métricas asociadas. Esta acción no se puede deshacer.');">
+                    <button type="submit" class="btn-danger">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No hay personas registradas todavía. <a href="/personas/nueva">Registrar la primera</a>.</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>Búsquedas realizadas (RF9)</h2>
+    <form method="get" class="form-inline">
+        <input type="text" name="q" placeholder="Buscar por persona, país o # de búsqueda"
+               value="{{ filtro_q }}" style="min-width:280px;">
+        <select name="estado">
+            <option value="">-- Estado --</option>
+            <option value="PENDIENTE" {% if filtro_estado=="PENDIENTE" %}selected{% endif %}>Pendiente</option>
+            <option value="EN_CURSO" {% if filtro_estado=="EN_CURSO" %}selected{% endif %}>En curso</option>
+            <option value="FINALIZADA" {% if filtro_estado=="FINALIZADA" %}selected{% endif %}>Finalizada</option>
+            <option value="ERROR" {% if filtro_estado=="ERROR" %}selected{% endif %}>Error</option>
+        </select>
+        <button type="submit">Buscar</button>
+        {% if filtro_q or filtro_estado %}<a href="/">Limpiar</a>{% endif %}
+    </form>
+    {% if busquedas %}
+    <table>
+        <tr><th>ID</th><th>Persona</th><th>País</th><th>Workers</th><th>Estado</th><th>Ver</th></tr>
+        {% for b in busquedas %}
+        <tr>
+            <td>{{ b.id }}</td><td>{{ b.persona.nombre_completo }}</td><td>{{ b.pais }}</td>
+            <td>{{ b.max_workers }}</td>
+            <td><span class="badge badge-{{ b.estado|lower }}">{{ b.estado }}</span></td>
+            <td><a href="/busquedas/{{ b.id }}">Resultados</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No se encontraron búsquedas con ese filtro.</p>
+    {% endif %}
+</section>
+{% endblock %}

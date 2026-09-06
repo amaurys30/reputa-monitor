@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Resultados búsqueda #{{ busqueda.id }}{% endblock %}
+{% block extra_head %}
+{% if busqueda.estado in ["PENDIENTE", "EN_CURSO"] %}
+<meta http-equiv="refresh" content="3">
+{% endif %}
+{% endblock %}
+{% block content %}
+<h1>Búsqueda #{{ busqueda.id }} — {{ busqueda.pais }}</h1>
+<p class="hint">Persona consultada: <strong>{{ busqueda.persona.nombre_completo }}</strong></p>
+<p>
+    Estado: <span class="badge badge-{{ busqueda.estado|lower }}">{{ busqueda.estado }}</span>
+    {% if busqueda.estado in ["PENDIENTE", "EN_CURSO"] %}
+        <span class="small"> (esta página se actualiza sola cada 3s)</span>
+    {% endif %}
+    &nbsp;|&nbsp; Workers configurados: <strong>{{ busqueda.max_workers }}</strong>
+    &nbsp;|&nbsp; Límite URLs: {{ busqueda.max_urls if busqueda.max_urls else "sin límite" }}
+</p>
+
+<section class="card">
+    <h2>Control concurrente de URLs (RF4)</h2>
+    <table>
+        <tr>
+            <th>PENDIENTE</th><th>EN_PROCESAMIENTO</th><th>PROCESADA</th>
+            <th>DESCARTADA</th><th>ERROR</th>
+        </tr>
+        <tr>
+            <td><span class="badge badge-neutro">{{ conteos_por_estado.PENDIENTE }}</span></td>
+            <td><span class="badge badge-en_curso">{{ conteos_por_estado.EN_PROCESAMIENTO }}</span></td>
+            <td><span class="badge badge-positivo">{{ conteos_por_estado.PROCESADA }}</span></td>
+            <td><span class="badge">{{ conteos_por_estado.DESCARTADA }}</span></td>
+            <td><span class="badge badge-negativo">{{ conteos_por_estado.ERROR }}</span></td>
+        </tr>
+    </table>
+    <p class="small">
+        Mientras la búsqueda está en curso, verás PENDIENTE bajar y
+        PROCESADA/DESCARTADA subir en tiempo real (la página se
+        refresca sola). Al finalizar, PENDIENTE y EN_PROCESAMIENTO
+        deben quedar en 0.
+    </p>
+</section>
+
+{% if metricas %}
+<section class="card">
+    <h2>Medición de concurrencia</h2>
+    <table>
+        <tr><th>Etapa</th><th>Modo</th><th>Workers</th><th>URLs procesadas</th><th>Tiempo (s)</th></tr>
+        {% for m in metricas %}
+        <tr>
+            <td>{{ m.etapa }}</td><td>{{ m.modo }}</td><td>{{ m.num_workers }}</td>
+            <td>{{ m.num_urls_procesadas }}</td><td>{{ m.tiempo_total_segundos }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2>Filtrar resultados (RF9)</h2>
+    <form method="get" class="form-inline">
+        <select name="clasificacion_contextual">
+            <option value="">-- Clasificación --</option>
+            <option value="POSITIVO" {% if filtro_clasificacion=="POSITIVO" %}selected{% endif %}>Positivo</option>
+            <option value="NEUTRO" {% if filtro_clasificacion=="NEUTRO" %}selected{% endif %}>Neutro</option>
+            <option value="NEGATIVO" {% if filtro_clasificacion=="NEGATIVO" %}selected{% endif %}>Negativo</option>
+            <option value="NO_DETERMINADO" {% if filtro_clasificacion=="NO_DETERMINADO" %}selected{% endif %}>No determinado</option>
+        </select>
+        <select name="estado_verificacion">
+            <option value="">-- Verificación identidad --</option>
+            <option value="MISMA_PERSONA" {% if filtro_verificacion=="MISMA_PERSONA" %}selected{% endif %}>Misma persona</option>
+            <option value="POSIBLE_COINCIDENCIA" {% if filtro_verificacion=="POSIBLE_COINCIDENCIA" %}selected{% endif %}>Posible coincidencia</option>
+            <option value="PERSONA_DIFERENTE" {% if filtro_verificacion=="PERSONA_DIFERENTE" %}selected{% endif %}>Persona diferente</option>
+            <option value="NO_DETERMINADO" {% if filtro_verificacion=="NO_DETERMINADO" %}selected{% endif %}>No determinado</option>
+        </select>
+        <select name="fuente_id">
+            <option value="">-- Fuente --</option>
+            {% for f in fuentes_pais %}
+            <option value="{{ f.id }}" {% if filtro_fuente_id==f.id|string %}selected{% endif %}>{{ f.nombre }}</option>
+            {% endfor %}
+        </select>
+        <label class="small">Desde</label>
+        <input type="date" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+        <label class="small">Hasta</label>
+        <input type="date" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+        <button type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Documentos relacionados ({{ documentos|length }})</h2>
+    <table>
+        <tr>
+            <th>Título</th><th>URL</th><th>País</th><th>Fecha public.</th><th>Fecha consulta</th>
+            <th>Verificación</th><th>Clasificación</th><th>Score</th><th>Justificación</th>
+        </tr>
+        {% for d in documentos %}
+        <tr>
+            <td>{{ d.titulo or "(sin título)" }}</td>
+            <td><a href="{{ d.url }}" target="_blank">enlace</a></td>
+            <td>{{ d.pais }}</td>
+            <td>{{ d.fecha_publicacion.strftime("%Y-%m-%d") if d.fecha_publicacion else "-" }}</td>
+            <td>{{ d.fecha_consulta.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td><span class="badge">{{ d.estado_verificacion.value }}</span></td>
+            <td><span class="badge badge-{{ d.clasificacion_contextual.value|lower }}">{{ d.clasificacion_contextual.value }}</span></td>
+            <td>{{ d.score_identidad }}</td>
+            <td class="small">{{ d.justificacion_clasificacion }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+
+<section class="card">
+    <h2>Elementos descartados / con error ({{ descartados|length }}) — RF5</h2>
+    <table>
+        <tr><th>URL</th><th>Estado</th><th>Motivo</th></tr>
+        {% for u in descartados %}
+        <tr><td>{{ u.url }}</td><td>{{ u.estado.value }}</td><td>{{ u.motivo_descarte }}</td></tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}

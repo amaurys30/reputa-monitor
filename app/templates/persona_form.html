@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Registrar persona{% endblock %}
+{% block content %}
+<h1>Registrar persona a consultar (RF1)</h1>
+<form method="post" action="/personas/nueva" class="card form">
+    <label>Nombre completo *</label>
+    <input type="text" name="nombre_completo" required>
+
+    <label>País *</label>
+    <input type="text" name="pais" required placeholder="Colombia">
+
+    <label>Ciudad</label>
+    <input type="text" name="ciudad">
+
+    <label>Profesión o cargo</label>
+    <input type="text" name="profesion_cargo">
+
+    <label>Empresa u organización</label>
+    <input type="text" name="empresa_organizacion">
+
+    <label>Alias (separados por coma)</label>
+    <input type="text" name="alias" placeholder="apodo1, apodo2">
+
+    <label>Palabras relacionadas (separadas por coma)</label>
+    <input type="text" name="palabras_relacionadas" placeholder="proyecto X, empresa Y">
+
+    <button type="submit">Registrar</button>
+</form>
+{% endblock %}

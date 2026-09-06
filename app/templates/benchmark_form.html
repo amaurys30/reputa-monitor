@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Benchmark de concurrencia{% endblock %}
+{% block content %}
+<h1>Benchmark de concurrencia (1 vs. N workers)</h1>
+<p class="hint">
+    Corre la MISMA búsqueda varias veces, cambiando solo el número de
+    workers, para comparar el tiempo bajo condiciones equivalentes
+    (RF3/RF4 + medición de concurrencia). Las corridas se ejecutan una
+    detrás de otra, nunca al mismo tiempo entre sí.
+</p>
+
+<form method="post" action="/benchmark/nuevo" class="card form">
+    <label>Persona *</label>
+    <select name="persona_id" required>
+        {% for p in personas %}
+        <option value="{{ p.id }}">{{ p.nombre_completo }} ({{ p.pais }})</option>
+        {% endfor %}
+    </select>
+
+    <label>País de búsqueda *</label>
+    <input type="text" name="pais" required placeholder="Colombia">
+
+    <label>Valores de workers a comparar (separados por coma) *</label>
+    <input type="text" name="lista_workers" required value="1,2,4,8" placeholder="1,2,4,8,16">
+
+    <label>Límite de URLs por corrida *</label>
+    <input type="number" name="max_urls" min="5" max="2000" value="60" required>
+
+    <button type="submit">Iniciar benchmark</button>
+</form>
+
+<p class="hint">
+    <strong>Ten paciencia:</strong> cada valor de workers corre una
+    búsqueda completa de principio a fin. Con varios valores (ej.
+    1,2,4,8) esto puede tardar varios minutos en total, sobre todo la
+    corrida con 1 worker.
+</p>
+{% endblock %}
