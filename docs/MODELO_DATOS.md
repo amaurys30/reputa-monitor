@@ -93,8 +93,3 @@ erDiagram
     }
 ```
 
-
-  equivalentes.
-- Los borrados están configurados en **cascada** a nivel de ORM
-  (`cascade="all, delete-orphan"`): eliminar una `Persona` elimina
-  también sus búsquedas, URLs, documentos y métricas asociadas.
