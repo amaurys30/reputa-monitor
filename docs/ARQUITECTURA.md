@@ -1,5 +1,53 @@
 # Diagrama de Arquitectura de Software — Reputa Monitor
 
+
+```mermaid
+flowchart TB
+    U[Usuario<br/>Navegador Web]
+    APP[Aplicación Web<br/>FastAPI + Jinja2<br/>Rutas HTML, API REST y Benchmark]
+
+    subgraph MOTOR["Motor de Crawling Concurrente (RF3 / RF4)"]
+        direction TB
+        MGR[Crawler Manager<br/>arma el pool de N workers configurable]
+        COLA[Cola Compartida<br/>queue.Queue - productor/consumidor]
+        WORKERS[Workers 1..N<br/>threads corriendo en paralelo]
+        LOCK[URL State Manager<br/>Lock - evita procesar la misma URL 2 veces]
+        MGR --> COLA --> WORKERS --> LOCK
+    end
+
+    subgraph PIPE["Pipeline de Análisis por Documento (RF5 / RF7 / RF8)"]
+        direction TB
+        P1[1. Descargar y extraer contenido]
+        P2[2. Verificar si está relacionado con la persona]
+        P3[3. Verificar identidad]
+        P4[4. Clasificar el contexto]
+        P1 --> P2 --> P3 --> P4
+    end
+
+    DB[(PostgreSQL<br/>Persistencia - RF6)]
+
+    U --> APP
+    APP -->|inicia búsqueda| MOTOR
+    WORKERS -->|cada worker ejecuta| PIPE
+    PIPE -->|guarda documento| DB
+    LOCK -->|guarda estado de URL| DB
+    APP -->|consulta y filtra - RF9| DB
+```
+
+**Cómo funciona**: el usuario inicia una búsqueda desde
+la web. El *Crawler Manager* arma un pool de N workers (threads) que
+comparten una cola de URLs pendientes. Cada worker, antes de procesar
+una URL, pasa por el *URL State Manager*, que usa un `Lock` para
+garantizar que ninguna URL sea tomada por dos workers a la vez (RF4).
+Una vez que un worker "gana" una URL, corre el pipeline de análisis
+(descarga → matching → verificación de identidad → clasificación) de
+forma totalmente independiente de los demás workers, y al final
+persiste el resultado en PostgreSQL.
+
+---
+
+## Vista detallada (referencia, incluye todos los módulos)
+
 ```mermaid
 flowchart TB
     subgraph Cliente
@@ -17,7 +65,7 @@ flowchart TB
     end
 
     subgraph "Capa de Orquestacion de Concurrencia (RF3/RF4)"
-        MGR[Crawler Manager<br/>app/crawler/crawler_manager.py]
+        MGR2[Crawler Manager<br/>app/crawler/crawler_manager.py]
         SM[URL State Manager<br/>Lock sobre estados - RF4]
         Q["Cola Compartida (queue.Queue)<br/>reserva atomica de cupo - RF3"]
         METR[Acumulador de Tiempos<br/>app/crawler/metrics_accumulator.py<br/>Lock por etapa]
@@ -40,24 +88,24 @@ flowchart TB
     end
 
     subgraph "Capa de Persistencia"
-        DB[(PostgreSQL<br/>Pool de conexiones)]
+        DB2[(PostgreSQL<br/>Pool de conexiones)]
     end
 
     U -->|HTTP| WEB
     U -->|HTTP/JSON| API
     U -->|HTTP| BENCH_UI
-    WEB --> MGR
-    API --> MGR
-    BENCH_UI -->|N corridas secuenciales| MGR
+    WEB --> MGR2
+    API --> MGR2
+    BENCH_UI -->|N corridas secuenciales| MGR2
     BENCH_UI --> BENCHAN
 
     WEB --> DETECT
     API --> DETECT
-    DETECT --> DB
+    DETECT --> DB2
 
-    MGR --> SM
-    MGR --> Q
-    MGR --> METR
+    MGR2 --> SM
+    MGR2 --> Q
+    MGR2 --> METR
     Q --> W1 & W2 & WN
     W1 & W2 & WN --> SM
     W1 & W2 & WN --> FETCH
@@ -68,43 +116,12 @@ flowchart TB
     MATCH --> IDENT
     IDENT --> CLASS
     W1 & W2 & WN -.mide tiempo por etapa.-> METR
-    CLASS -->|Documento clasificado| DB
-    SM -->|estados de URL| DB
-    METR -->|metricas por etapa| DB
-    WEB --> DB
-    API --> DB
+    CLASS -->|Documento clasificado| DB2
+    SM -->|estados de URL| DB2
+    METR -->|metricas por etapa| DB2
+    WEB --> DB2
+    API --> DB2
 ```
-
-## Justificación de capas
-
-1. **Presentación**: FastAPI expone vistas HTML (para uso humano y para
-   la sustentación, incluyendo el benchmark visual en `/benchmark`),
-   una API JSON (para pruebas automatizadas o integración), y comparten
-   toda la lógica de negocio subyacente.
-2. **Administración de fuentes (RF2)**: el país de una fuente se
-   determina automáticamente analizando el contenido de su URL semilla
-   (nunca la ubicación del servidor). El detector prioriza dominios
-   institucionales (`.edu.co`, `.gov.co`) sobre el idioma declarado,
-   porque este último suele ser un valor por defecto de plantilla poco
-   confiable.
-3. **Orquestación de concurrencia**: es el corazón del taller. El
-   `Crawler Manager` arma el pool de N workers configurables (RF3),
-   les entrega una cola compartida thread-safe con reserva atómica de
-   cupo (evita URLs huérfanas más allá del límite de exploración), un
-   gestor de estados con sincronización explícita (RF4), y un
-   acumulador de tiempos por etapa para la medición de concurrencia.
-4. **Procesamiento por documento**: pipeline puro (sin estado
-   compartido) que cada worker ejecuta de forma aislada. Incluye
-   normalización de URLs (evita duplicados por variaciones
-   superficiales) y generación de variantes de nombre (reconoce
-   menciones realistas como "Nombre Apellido", no solo el nombre legal
-   completo).
-5. **Análisis de concurrencia**: a partir de las métricas persistidas,
-   genera automáticamente el análisis textual (speedup, detección de
-   meseta) que exige la rúbrica, mostrado en vivo en `/benchmark`.
-6. **Persistencia**: PostgreSQL con un pool de conexiones
-   (`pool_size=20`) para soportar escrituras concurrentes desde
-   múltiples workers sin agotar conexiones.
 
 ## Patrón de concurrencia usado
 
